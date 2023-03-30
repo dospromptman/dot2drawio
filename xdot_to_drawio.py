@@ -1,59 +1,64 @@
-import re
 import sys
+import pydot
 from lxml import etree
 
-with open(sys.argv[1], 'r') as file:
-    xdot_data = file.read()
+dot_graph = pydot.graph_from_dot_file(sys.argv[1])[0]
 
-node_pattern = re.compile(r'(?:"(.*?)"\s+\[.*?label="(.*?)".*?pos="(.*?),(.*?)".*?width="(.*?)".*?height="(.*?)".*?\];)', re.DOTALL)
-edge_pattern = re.compile(r'(?:"(.*?)" -> "(.*?)".*?pos="(.*?)";)', re.DOTALL)
+mxGraphModel = etree.Element("mxGraphModel")
+mxGraphModel.set("dx", "0")
+mxGraphModel.set("dy", "0")
+mxGraphModel.set("grid", "1")
+mxGraphModel.set("gridSize", "10")
+mxGraphModel.set("guides", "1")
+mxGraphModel.set("tooltips", "1")
+mxGraphModel.set("connect", "1")
+mxGraphModel.set("arrows", "1")
+mxGraphModel.set("fold", "1")
+mxGraphModel.set("page", "1")
+mxGraphModel.set("pageScale", "1")
+mxGraphModel.set("pageWidth", "850")
+mxGraphModel.set("pageHeight", "1100")
+mxGraphModel.set("background", "#ffffff")
 
-root = etree.Element("mxGraphModel")
-root.set("dx", "0")
-root.set("dy", "0")
-root.set("grid", "1")
-root.set("gridSize", "10")
-root.set("guides", "1")
-root.set("tooltips", "1")
-root.set("connect", "1")
-root.set("arrows", "1")
-root.set("fold", "1")
-root.set("page", "1")
-root.set("pageScale", "1")
-root.set("pageWidth", "850")
-root.set("pageHeight", "1100")
-root.set("background", "#ffffff")
+root = etree.SubElement(mxGraphModel, "root")
 
-root.append(etree.Comment(" The following elements are layers. "))
-
-parent = etree.SubElement(root, "mxCell", id="1")
-parent.set("parent", "0")
+layer0 = etree.SubElement(root, "mxCell", id="0")
+layer1 = etree.SubElement(root, "mxCell", id="1", parent="0")
 
 root.append(etree.Comment(" The following elements are vertices. "))
 
-for match in node_pattern.finditer(xdot_data):
-    id, label, x, y, width, height = match.groups()
-    x, y, width, height = float(x), float(y), float(width), float(height)
+for node in dot_graph.get_nodes():
+    if node.get_name() in ['node', 'graph', '"\\n"']:
+        continue
+    id_ = node.get_name().strip('"')
+    label = node.get("label").strip('"').replace("\\n", "<br>")
+    pos = node.get("pos") or '"0,0"'
+    pos = pos.strip('"').split(",")
+    x, y = float(pos[0]), float(pos[1])
+    width = node.get("width") or '"0"'
+    width = float(width.strip('"')) * 72
+    height = node.get("height") or '"0"'
+    height = float(height.strip('"')) * 72
 
-    node = etree.SubElement(parent, "mxCell", id=id, value=label, vertex="1", style="rounded=1;whiteSpace=wrap;html=1;")
-    node.set("parent", "1")
+    xml_node = etree.SubElement(root, "mxCell", id=id_, value=label, vertex="1", style="rounded=1;whiteSpace=wrap;html=1;")
+    xml_node.set("parent", "1")
 
-    geometry = etree.SubElement(node, "mxGeometry", x=str(x), y=str(y), width=str(width), height=str(height), attrib={"as": "geometry"})
+    geometry = etree.SubElement(xml_node, "mxGeometry", x=str(x), y=str(y), width=str(width), height=str(height), attrib={"as": "geometry"})
 
 root.append(etree.Comment(" The following elements are edges. "))
 
-for match in edge_pattern.finditer(xdot_data):
-    source, target, pos = match.groups()
-    points = pos.split(" ")
+for edge in dot_graph.get_edges():
+    source, target = edge.get_source().strip('"'), edge.get_destination().strip('"')
+    pos = edge.get("pos").strip('"').split(" ")[1:-1]
 
-    edge = etree.SubElement(parent, "mxCell", edge="1", source=source, target=target, style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;")
-    edge.set("parent", "1")
+    xml_edge = etree.SubElement(root, "mxCell", edge="1", source=source, target=target, style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;")
+    xml_edge.set("parent", "1")
 
-    geometry = etree.SubElement(edge, "mxGeometry", relative="1", attrib={"as": "geometry"})
-    array = etree.SubElement(geometry, "Array", attrib={"as": "points"})
+    geometry = etree.SubElement(xml_edge, "mxGeometry", relative="1", attrib={"as": "geometry"})
+    #array = etree.SubElement(geometry, "Array", attrib={"as": "points"})
 
-    for i in range(0, len(points) - 1, 2):
-        x, y = points[i], points[i + 1]
-        etree.SubElement(array, "mxPoint", x=x, y=y)
+    #for i in range(0, len(pos), 2):
+    #    x, y = pos[i].split(",")
+    #    etree.SubElement(array, "mxPoint", x=x, y=y)
 
-etree.ElementTree(root).write(sys.argv[2], pretty_print=True, xml_declaration=True, encoding="UTF-8")
+etree.ElementTree(mxGraphModel).write(sys.argv[2], pretty_print=True, xml_declaration=True, encoding="UTF-8")

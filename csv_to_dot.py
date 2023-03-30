@@ -23,7 +23,7 @@ def csv_to_dot(input_filename, output_filename):
         dotfile.write("digraph G {\n")
         dotfile.write('  rankdir="LR";\n')  # Set graph layout direction to left-to-right
         dotfile.write('  splines=ortho;\n')  # Set graph to prefer orthogonal splines that route around nodes
-        dotfile.write('  node [shape=box];\n')  # Set default node shape to box
+        dotfile.write('  node [shape=box fontname=Helvetica fontsize="12pt"];\n')  # Set default node shape to box
 
         for node_id, label in nodes.items():
             dotfile.write(f'  "{node_id}" [label="{label}"];\n')
